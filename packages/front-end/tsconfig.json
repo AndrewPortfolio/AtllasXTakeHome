@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "jsx": "preserve",
+    // Overrides the workspace default of CommonJS. Next patches this in when it builds;
+    // setting it here is what lets `npm run typecheck` work on its own.
+    "module": "ESNext",
     "lib": [
       "dom",
       "dom.iterable",

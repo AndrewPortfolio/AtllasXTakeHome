@@ -45,3 +45,8 @@ coverage/
 
 # vercel
 .vercel
+
+
+#md files
+AGENTS.md
+CLAUDE.md

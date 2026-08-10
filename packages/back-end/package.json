@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "start:prod": "cross-env NODE_ENV=production nodemon",
-    "start:dev": "cross-env NODE_ENV=development nodemon"
+    "start:dev": "cross-env NODE_ENV=development nodemon",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "express": "^4.21.2",
     "sequelize": "^6.37.8",
+    "shared": "*",
     "sqlite3": "^6.0.1"
   },
   "devDependencies": {
