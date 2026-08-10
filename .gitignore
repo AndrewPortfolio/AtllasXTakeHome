@@ -1,0 +1,47 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build output
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+
+# next.js generated types (recreated by `next dev`/`next build`)
+next-env.d.ts
+
+# local database (see packages/back-end/src/services/db.ts)
+*.db
+*.sqlite
+*.sqlite3
+
+# submission bundle (scripts/bundle.mjs)
+submission.bundle
+*.zip
+
+# env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# testing
+coverage/
+
+# editor / OS
+.DS_Store
+.idea/
+*.swp
+
+# vercel
+.vercel
