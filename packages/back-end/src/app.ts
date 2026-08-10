@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { readdirSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { attachSequelize } from './middleware/db';
@@ -14,6 +14,7 @@ const app = express();
 
 // Attach any middleware
 app.use(Cors);
+app.use(express.json({ limit: '64kb' }));
 app.use(attachSequelize);
 
 // Read all entries from the "routes" directory. Filter out any entry that is not a file.
@@ -37,6 +38,29 @@ queue.forEach(entry => {
   } catch (e) {
     console.error('Failed to inject route on entry "%s".', entry, e);
   }
+});
+
+// Anything that escapes a route handler lands here. Without this, express' default
+// handler answers with an HTML error page, which a JSON client can't do much with.
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  // Thrown by express.json() when the body isn't parseable.
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({
+      success: false,
+      error: 'Request body must be valid JSON.',
+    });
+  }
+
+  console.error('Unhandled error on %s %s.', req.method, req.originalUrl, err);
+
+  return res.status(500).json({
+    success: false,
+    error: 'Something went wrong. Please try again.',
+  });
 });
 
 app.listen(appCfg.port, appCfg.hostname, () => {
