@@ -7,7 +7,9 @@ import IRoute from './types/IRoute';
 
 const appCfg = {
   port: parseInt(process.env.EXPRESS_PORT) || 50000,
-  hostname: process.env.EXPRESS_HOST ?? '127.0.0.1',
+  // All interfaces, so a phone on the same Wi-Fi can reach it. Set EXPRESS_HOST=127.0.0.1
+  // to go back to loopback only. CORS still answers private-network origins only.
+  hostname: process.env.EXPRESS_HOST ?? '0.0.0.0',
 };
 
 const app = express();

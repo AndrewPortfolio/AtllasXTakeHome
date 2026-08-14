@@ -1,8 +1,26 @@
-import type { ApiFailure, ApiSuccess, UserFieldErrors, UserFormValues, UserRecord } from 'shared';
+import {
+  DEFAULT_PAGE_SIZE,
+  type ApiFailure,
+  type ApiSuccess,
+  type UserFieldErrors,
+  type UserFormValues,
+  type UserPage,
+  type UserRecord,
+} from 'shared';
 
-/** The express server from `packages/back-end`, which defaults to port 50000. */
-export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:50000')
-  .replace(/\/+$/, '');
+/** The port the express server in `packages/back-end` listens on. */
+const API_PORT = 50000;
+
+//api can run from laptop + mobile if connected to same wifi
+function sameHostApi(): string {
+  if (typeof window === 'undefined') {
+    return `http://127.0.0.1:${API_PORT}`;
+  }
+
+  return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
+}
+
+export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? sameHostApi()).replace(/\/+$/, '');
 
 /** A failed request, carrying whatever per-field reasons the server sent back. */
 export class ApiError extends Error {
@@ -37,6 +55,43 @@ async function readEnvelope<T>(response: Response): Promise<Envelope<T>> {
   }
 }
 
+/** The request never reached the server: DNS, a refused connection, the API being down. */
+function unreachable(): ApiError {
+  return new ApiError(
+    `Couldn't reach the server. Check that the API is running at ${API_BASE_URL}.`,
+    0,
+  );
+}
+
+/**
+ * Fetch one page of users, oldest first.
+ *
+ * The server orders by id, so `offset` addresses a stable row no matter how many pages the
+ * table has already pulled in.
+ */
+export async function fetchUsers(offset = 0, limit = DEFAULT_PAGE_SIZE): Promise<UserPage> {
+  const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/users?${query}`);
+  } catch {
+    throw unreachable();
+  }
+
+  const envelope = await readEnvelope<UserPage>(response);
+
+  if (!response.ok) {
+    throw new ApiError(envelope.error ?? 'Could not load users. Please try again.', response.status);
+  }
+
+  if (!envelope.data?.users) {
+    throw new ApiError('The server sent back a page with no users in it.', response.status);
+  }
+
+  return envelope.data;
+}
+
 /**
  * Create a user.
  *
@@ -53,10 +108,7 @@ export async function createUser(values: UserFormValues): Promise<UserRecord> {
       body: JSON.stringify(values),
     });
   } catch {
-    throw new ApiError(
-      `Couldn't reach the server. Check that the API is running at ${API_BASE_URL}.`,
-      0,
-    );
+    throw unreachable();
   }
 
   const envelope = await readEnvelope<UserRecord>(response);

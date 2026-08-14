@@ -1,6 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 
-const ALLOWED_ORIGIN_PATTERN =  /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/;
+// Loopback plus the private LAN ranges, so a phone on the same Wi-Fi can reach the API
+const ALLOWED_HOSTS = [
+  'localhost',
+  '127\\.0\\.0\\.1',
+  '10(?:\\.\\d{1,3}){3}',
+  '192\\.168(?:\\.\\d{1,3}){2}',
+  '172\\.(?:1[6-9]|2\\d|3[01])(?:\\.\\d{1,3}){2}',
+].join('|');
+
+const ALLOWED_ORIGIN_PATTERN = new RegExp(`^https?://(?:${ALLOWED_HOSTS}):\\d+$`);
 const ALLOWED_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
 const ALLOWED_HEADERS = 'Content-Type';
 
