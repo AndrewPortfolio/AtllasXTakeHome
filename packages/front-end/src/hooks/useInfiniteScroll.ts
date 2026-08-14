@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 //fetches data before user reaches bottom 
-const PREFETCH_MARGIN = '600px';
+const PREFETCH_MARGIN = '1000px';
 
 // when enabled is true, it rebuilds observer for infinite scroll 
 // when it's false it is still scrolling
