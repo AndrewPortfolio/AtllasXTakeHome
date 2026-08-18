@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { col, fn, UniqueConstraintError, ValidationError, where } from 'sequelize';
-import { toCreateUserAttributes, validateUserForm } from 'shared';
+import { parsePaginationQuery, toCreateUserAttributes, validateUserForm } from 'shared';
 import IRoute from '../types/IRoute';
 import { User } from '../services/db';
 
@@ -16,24 +16,49 @@ const UsersRouter: IRoute = {
     const router = Router();
 
     router.route('/')
-      // Fetch all users
+      // Fetch one page of users
       .get(async (req, res) => {
-        // pro tip: if you're not seeing any users, make sure you seeded the database.
-        //          make sure you read the readme! :)
 
-        return User.findAll()
-          .then(users => {
-            return res.json({
-              success: true,
-              data: users,
-            });
-          })
-          .catch(err => {
-            console.error('Failed to list all users.', err);
-            res.status(500).json({
-              success: false,
-            });
+        const pagination = parsePaginationQuery(req.query);
+
+        if (pagination.status === 'invalid') {
+          return res.status(400).json({
+            success: false,
+            error: pagination.message,
           });
+        }
+
+        const { offset, limit } = pagination.values;
+
+        try {
+          const [rows, total] = await Promise.all([
+            // Ordered by primary key so page boundary falls in same place
+            // without SQlite can reorder so we see data twice or not at all
+            // One row over the limit answers `hasMore` without a second round trip.
+            User.findAll({ order: [['id', 'ASC']], offset, limit: limit + 1 }),
+            User.count(),
+          ]);
+
+          const hasMore = rows.length > limit;
+
+          return res.json({
+            success: true,
+            data: {
+              users: hasMore ? rows.slice(0, limit) : rows,
+              offset,
+              limit,
+              hasMore,
+              total,
+            },
+          });
+        } catch (err) {
+          console.error('Failed to list users.', err);
+
+          return res.status(500).json({
+            success: false,
+            error: 'Could not load users. Please try again.',
+          });
+        }
       })
 
       // Create a new user
@@ -51,9 +76,8 @@ const UsersRouter: IRoute = {
         const attributes = toCreateUserAttributes(parsed.values);
 
         try {
-          // The unique index is case-sensitive, but "Ada@x.com" and "ada@x.com" are the same
-          // mailbox as far as the POs are concerned. Check before inserting so the caller gets
-          // a helpful 409 rather than a surprise duplicate row.
+          // The unique index is case-sensitive make all emails lowercase
+          // check if exists before inserting --> avoids dups 
           const existing = await User.findOne({
             attributes: ['id'],
             where: where(fn('lower', col('email')), attributes.email.toLowerCase()),
@@ -70,12 +94,12 @@ const UsersRouter: IRoute = {
             data: created,
           });
         } catch (err) {
-          // Lost the race against a concurrent insert with the same email.
+          // duplicate email error
           if (err instanceof UniqueConstraintError) {
             return res.status(409).json(DUPLICATE_EMAIL_RESPONSE);
           }
 
-          // Model-level constraints we didn't catch above (NOT NULL, length, ...).
+          // Error if certain fields are missing
           if (err instanceof ValidationError) {
             return res.status(400).json({
               success: false,
